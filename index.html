@@ -376,7 +376,7 @@
         </div>
 
         <div id="statusBox" class="status-box"></div>
-        <div id="result" class="result-card"></div>
+       
 
         <div id="formArea" class="form-card">
           <div class="form-title">申請資料 / Request Details</div>
@@ -420,7 +420,7 @@
             <button id="copyBtn" class="secondary-btn" onclick="copyNumbers()">複製號碼 / Copy Numbers</button>
           </div>
         </div>
-
+ <div id="result" class="result-card"></div>
         <div class="footer-note">
           為保障資料保密，系統只會顯示本次申請結果，不會公開其他已分配號碼。<br>
           For confidentiality, the system only shows the result of the current request and does not disclose other assigned numbers.
@@ -447,7 +447,8 @@
       box.innerHTML = message;
     }
 
-    function showResult(title, message, type, numbers = []) {
+    function showResult(title, message, type, numbers = []) 
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth' });{
       const resultDiv = document.getElementById('result');
       resultDiv.style.display = 'block';
       resultDiv.className = 'result-card';
