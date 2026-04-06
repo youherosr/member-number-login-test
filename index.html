@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <title>Google Login Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .card {
+      max-width: 640px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .result {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #eef8f1;
+      border: 1px solid #cfe7d5;
+      display: none;
+    }
+    .error {
+      background: #fff4f1;
+      border: 1px solid #ffd2c8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Google Login Test</h1>
+    <p>This page only tests Google sign-in.</p>
+
+    <div id="g_id_onload"
+         data-client_id="PASTE_YOUR_CLIENT_ID_HERE"
+         data-callback="handleCredentialResponse">
+    </div>
+
+    <div class="g_id_signin"
+         data-type="standard"
+         data-size="large"
+         data-theme="outline"
+         data-text="sign_in_with"
+         data-shape="rectangular"
+         data-logo_alignment="left">
+    </div>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    function decodeJwtResponse(token) {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join('')
+      );
+      return JSON.parse(jsonPayload);
+    }
+
+    function handleCredentialResponse(response) {
+      const resultDiv = document.getElementById('result');
+
+      try {
+        const userObject = decodeJwtResponse(response.credential);
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'result';
+        resultDiv.innerHTML =
+          '<strong>Signed in successfully</strong><br>' +
+          'Email: ' + (userObject.email || '') + '<br>' +
+          'Name: ' + (userObject.name || '');
+      } catch (e) {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = '<strong>Error</strong><br>' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
