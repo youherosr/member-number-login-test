@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <title>Google Login Test</title>
+  <title>Google Login Approval Test</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,14 +12,16 @@
       margin: 0;
       padding: 40px 20px;
     }
+
     .card {
-      max-width: 640px;
+      max-width: 680px;
       margin: 0 auto;
       background: #fff;
       border-radius: 14px;
       padding: 28px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.08);
     }
+
     .result {
       margin-top: 20px;
       padding: 14px;
@@ -28,16 +30,22 @@
       border: 1px solid #cfe7d5;
       display: none;
     }
+
     .error {
       background: #fff4f1;
       border: 1px solid #ffd2c8;
+    }
+
+    .loading {
+      background: #fff8ef;
+      border: 1px solid #ffdcb8;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Google Login Test</h1>
-    <p>This page only tests Google sign-in.</p>
+    <h1>Google Login Approval Test</h1>
+    <p>Phase 2: sign in and check if the Gmail is approved.</p>
 
     <div id="g_id_onload"
          data-client_id="663272088961-8khaah34cj9bsvesuing05a84djeorh0.apps.googleusercontent.com"
@@ -57,6 +65,8 @@
   </div>
 
   <script>
+    const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzFmNcCZWFENkNo9dZ4d1qihYIl8E_rTOz3M8muPS7PqruI3CLgyxbsv7tiL_IYMgSk3A/exec';
+
     function decodeJwtResponse(token) {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -73,17 +83,60 @@
 
       try {
         const userObject = decodeJwtResponse(response.credential);
+        const email = (userObject.email || '').toLowerCase();
+
         resultDiv.style.display = 'block';
-        resultDiv.className = 'result';
+        resultDiv.className = 'result loading';
         resultDiv.innerHTML =
-          '<strong>Signed in successfully</strong><br>' +
-          'Email: ' + (userObject.email || '') + '<br>' +
-          'Name: ' + (userObject.name || '');
+          '<strong>Checking approval...</strong><br>Email: ' + email;
+
+        checkApproval(email);
+
       } catch (e) {
         resultDiv.style.display = 'block';
         resultDiv.className = 'result error';
         resultDiv.innerHTML = '<strong>Error</strong><br>' + e.message;
       }
+    }
+
+    function checkApproval(email) {
+      const callbackName = 'approvalCallback_' + Date.now();
+
+      window[callbackName] = function(res) {
+        const resultDiv = document.getElementById('result');
+
+        if (res.success && res.approved) {
+          resultDiv.className = 'result';
+          resultDiv.innerHTML =
+            '<strong>Access granted</strong><br>' +
+            'Email: ' + res.email + '<br>' +
+            'Status: Approved';
+        } else {
+          resultDiv.className = 'result error';
+          resultDiv.innerHTML =
+            '<strong>Access denied</strong><br>' +
+            'Email: ' + (res.email || email) + '<br>' +
+            'Status: ' + (res.message || 'Not authorized');
+        }
+
+        delete window[callbackName];
+        script.remove();
+      };
+
+      const script = document.createElement('script');
+      script.src = BACKEND_URL
+        + '?action=checkUser'
+        + '&email=' + encodeURIComponent(email)
+        + '&callback=' + callbackName;
+
+      script.onerror = function() {
+        const resultDiv = document.getElementById('result');
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML =
+          '<strong>Error</strong><br>Unable to connect to backend.';
+      };
+
+      document.body.appendChild(script);
     }
   </script>
 </body>
