@@ -84,7 +84,8 @@
     .login-panel,
     .account-panel,
     .form-card,
-    .result-card {
+    .result-card,
+    .help-card {
       border-radius: 16px;
     }
 
@@ -141,7 +142,6 @@
       background: #fcfcfb;
       border: 1px solid #ecefe9;
       padding: 22px;
-      margin-bottom: 0;
     }
 
     .form-title {
@@ -258,6 +258,16 @@
       background: #ffedd7;
     }
 
+    .ghost-btn {
+      background: #f4f7f4;
+      color: #425146;
+      border: 1px solid #dbe5dd;
+    }
+
+    .ghost-btn:hover {
+      background: #edf3ee;
+    }
+
     .result-card {
       display: none;
       margin-top: 14px;
@@ -309,6 +319,17 @@
       color: #215e38;
       letter-spacing: 0.5px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    .help-card {
+      display: none;
+      margin-top: 14px;
+      padding: 18px;
+      background: #fff8ef;
+      border: 1px solid #ffdcb8;
+      color: #7a5a22;
+      line-height: 1.7;
+      font-size: 14px;
     }
 
     .footer-note {
@@ -423,14 +444,20 @@
           <div class="button-row">
             <button id="submitBtn" class="primary-btn" onclick="submitRequest()">提交申請 / Submit</button>
             <button id="copyBtn" class="secondary-btn" onclick="copyNumbers()">複製號碼 / Copy Numbers</button>
+            <button id="clearBtn" class="ghost-btn" onclick="clearForm()">清除表格 / Clear Form</button>
+            <button id="switchBtn" class="ghost-btn" onclick="toggleSwitchHelp()">切換帳戶 / Switch Account</button>
           </div>
 
           <div id="result" class="result-card"></div>
+          <div id="switchHelp" class="help-card">
+            如需切換帳戶，請先登出 Google 帳戶，或使用無痕 / 私密瀏覽視窗重新開啟本系統。<br>
+            To switch account, please sign out of your Google account first, or reopen this system in an incognito/private browser window.
+          </div>
         </div>
 
         <div class="footer-note">
-          為保障資料保密，系統只會顯示本次申請結果，不會公開其他已分配號碼。<br>
-          For confidentiality, the system only shows the result of the current request and does not disclose other assigned numbers.
+          如你關閉此頁面後忘記已獲分配的號碼，系統會在成功申請後向你的 Gmail 發送確認電郵。<br>
+          If you forget the assigned numbers after closing this page, the system will send a confirmation email to your Gmail after a successful request.
         </div>
       </div>
     </div>
@@ -624,7 +651,8 @@
           showResult(
             '申請成功 / Request Successful',
             '使用帳戶 / Account Used：<strong>' + signedInEmail + '</strong><br>' +
-            '成功分配數量 / Quantity Assigned：<strong>' + res.qty + '</strong>',
+            '成功分配數量 / Quantity Assigned：<strong>' + res.qty + '</strong><br>' +
+            '系統亦會向你的 Gmail 發送確認電郵。<br>A confirmation email will also be sent to your Gmail.',
             'success',
             latestAssignedNumbers
           );
@@ -682,6 +710,20 @@
           btn.textContent = originalText;
         }, 1500);
       });
+    }
+
+    function clearForm() {
+      document.getElementById('center').value = '';
+      document.getElementById('personName').value = '';
+      document.getElementById('qty').value = '1';
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('copyBtn').style.display = 'none';
+      latestAssignedNumbers = [];
+    }
+
+    function toggleSwitchHelp() {
+      const help = document.getElementById('switchHelp');
+      help.style.display = help.style.display === 'block' ? 'none' : 'block';
     }
   </script>
 </body>
