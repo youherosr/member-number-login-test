@@ -457,7 +457,7 @@
 
         <div class="footer-note">
           如你關閉此頁面後忘記已獲分配的號碼，系統會在成功申請後向你的 Gmail 發送確認電郵。<br>
-          If you forget the assigned numbers after closing this page, the system will send a confirmation email to your Gmail after a successful request.
+          If you forget the assigned numbers after closing the page, the system will send a confirmation email to your Gmail after a successful request.
         </div>
       </div>
     </div>
@@ -468,6 +468,22 @@
 
     let signedInEmail = '';
     let latestAssignedNumbers = [];
+
+    function cleanupJsonp(callbackName, script) {
+      if (callbackName && window[callbackName]) {
+        delete window[callbackName];
+      }
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
+
+    function getBackendMessage(res, fallbackMessage) {
+      if (res && typeof res.message === 'string' && res.message.trim()) {
+        return res.message;
+      }
+      return fallbackMessage;
+    }
 
     function showStatus(message, type) {
       const box = document.getElementById('statusBox');
@@ -506,13 +522,23 @@
     }
 
     function decodeJwtResponse(token) {
-      const base64Url = token.split('.')[1];
+      if (!token || typeof token !== 'string') {
+        throw new Error('Missing Google credential token.');
+      }
+
+      const parts = token.split('.');
+      if (parts.length < 2 || !parts[1]) {
+        throw new Error('Invalid Google credential token.');
+      }
+
+      const base64Url = parts[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
         atob(base64).split('').map(function(c) {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join('')
       );
+
       return JSON.parse(jsonPayload);
     }
 
@@ -527,6 +553,10 @@
     function handleCredentialResponse(response) {
       try {
         resetUiForNewSession();
+
+        if (!response || !response.credential) {
+          throw new Error('No credential returned from Google sign-in.');
+        }
 
         const userObject = decodeJwtResponse(response.credential);
         const email = String(userObject.email || '').trim().toLowerCase();
@@ -567,6 +597,7 @@
 
     function checkApproval(email) {
       const callbackName = 'approvalCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+      let script;
 
       window[callbackName] = function(res) {
         const formArea = document.getElementById('formArea');
@@ -590,15 +621,19 @@
 
             formArea.style.display = 'none';
           }
+        } catch (e) {
+          showStatus(
+            '後端回應格式不正確，請重新整理頁面後再試。<br>Backend returned an invalid approval response. Please refresh the page and try again.',
+            'error'
+          );
+
+          formArea.style.display = 'none';
         } finally {
-          delete window[callbackName];
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+          cleanupJsonp(callbackName, script);
         }
       };
 
-      const script = document.createElement('script');
+      script = document.createElement('script');
       script.src = BACKEND_URL
         + '?action=checkUser'
         + '&email=' + encodeURIComponent(email)
@@ -613,11 +648,7 @@
         );
 
         document.getElementById('formArea').style.display = 'none';
-
-        delete window[callbackName];
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
+        cleanupJsonp(callbackName, script);
       };
 
       document.body.appendChild(script);
@@ -670,20 +701,35 @@
       );
 
       const callbackName = 'assignCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+      let script;
 
       window[callbackName] = function(res) {
         try {
           if (res && res.success) {
             latestAssignedNumbers = Array.isArray(res.numbers) ? res.numbers : [];
 
-            showResult(
-              '申請成功 / Request Successful',
+            let successMessage =
               '使用帳戶 / Account Used：<strong>' + signedInEmail + '</strong><br>' +
               '成功分配數量 / Quantity Assigned：<strong>' + res.qty + '</strong><br>' +
               '請使用下方「複製 Excel 格式」按鈕貼上到 Excel。<br>' +
-              'Please use the "Copy for Excel" button below to paste into Excel.<br>' +
-              '系統亦會向你的 Gmail 發送確認電郵。<br>' +
-              'A confirmation email will also be sent to your Gmail.',
+              'Please use the "Copy for Excel" button below to paste into Excel.<br>';
+
+            if (res.warning) {
+              successMessage +=
+                '<br><strong style="color:#a85d12;">注意 / Warning：</strong> ' +
+                '會員號碼已成功分配，但確認電郵未能發送。請在離開頁面前先複製號碼。<br>' +
+                '<span style="color:#a85d12;">' +
+                'The member numbers were assigned successfully, but the confirmation email could not be sent. Please copy the numbers before leaving this page.' +
+                '</span>';
+            } else {
+              successMessage +=
+                '系統亦會向你的 Gmail 發送確認電郵。<br>' +
+                'A confirmation email will also be sent to your Gmail.';
+            }
+
+            showResult(
+              '申請成功 / Request Successful',
+              successMessage,
               'success',
               latestAssignedNumbers
             );
@@ -694,23 +740,25 @@
           } else {
             showResult(
               '申請未能完成 / Request Not Completed',
-              (res && res.message) || 'Unknown error',
+              getBackendMessage(res, 'Unknown error'),
               'error'
             );
           }
+        } catch (e) {
+          showResult(
+            '連線錯誤 / Connection Error',
+            '後端回應格式不正確，請重新整理頁面後再試。<br>Backend returned an invalid assignment response. Please refresh the page and try again.',
+            'error'
+          );
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = '提交申請 / Submit';
           document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-          delete window[callbackName];
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+          cleanupJsonp(callbackName, script);
         }
       };
 
-      const script = document.createElement('script');
+      script = document.createElement('script');
       script.src = BACKEND_URL
         + '?action=assign'
         + '&email=' + encodeURIComponent(signedInEmail)
@@ -728,11 +776,7 @@
         );
         submitBtn.disabled = false;
         submitBtn.textContent = '提交申請 / Submit';
-
-        delete window[callbackName];
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
+        cleanupJsonp(callbackName, script);
       };
 
       document.body.appendChild(script);
@@ -741,13 +785,22 @@
     function copyNumbers() {
       if (!latestAssignedNumbers.length) return;
 
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        showResult(
+          '複製失敗 / Copy Failed',
+          '未能自動複製號碼，請稍後再試。<br>Unable to copy automatically. Please try again.',
+          'error'
+        );
+        return;
+      }
+
       const text = latestAssignedNumbers.join('\n');
 
       navigator.clipboard.writeText(text).then(function() {
         const btn = document.getElementById('copyBtn');
         const originalText = btn.textContent;
 
-        btn.textContent = '已複製 Excel 格式 / Copied for Excel';
+        btn.textContent = '已複製，可貼上 Excel / Copied for Excel';
 
         setTimeout(function() {
           btn.textContent = originalText;
